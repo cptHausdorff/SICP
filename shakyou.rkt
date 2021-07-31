@@ -198,25 +198,50 @@
 (define (newtons-method g guess)
   (fixed-point (newton-transform g) guess))
 
-#|
-(define (fixed-point f first-guess)
-  (let ((tolerance 0.00001))
-    (define (close-enough? v1 v2)
-      (< (abs (- v1 v2)) tolerance))
-    (define (try guess)
-      (let ((next (f guess)))
-        (if (close-enough? guess next)
-            next
-            (try next))))
-    (try first-guess)))
-
-(define (newtons-method g guess)
-  (fixed-point (newton-transform g) guess))
-|#
 
 (define (fixed-point-of-transform g transform guess)
   (fixed-point (transform g) guess))
 
+#|
+2. データによる抽象の構築
+---------------------
+
+- 合成データ，データ抽象，抽象化の壁，データ主導プログラミング
+|#
+
+;; 有理数
+;; make-rat, numer, denom がすでに使えると仮定する(wishful thinkng)
+(define (add-rat x y)
+  (make-rat (+ (* (numer x) (denom y))
+               (* (numer y) (denom x)))
+            (* (denom x) (denom y))))
+(define (sub-rat x y)
+  (make-rat (- (* (numer x) (denom y))
+               (* (numer y) (denom x)))
+            (* (denom x) (denom y))))
+(define (mul-rat x y)
+  (make-rat (* (numer x) (numer y))
+            (* (denom x) (denom y))))
+(define (div-rat x y)
+  (make-rat (* (numer x) (denom y))
+            (* (numer y) (denom x))))
+(define (equal-rat? x y)
+  (= (* (numer x) (denom y))
+     (* (numer y) (denom x))))
+
+(define (make-rat n d)
+  (let ((g (gcd n d)))
+    (if (< d 0)
+        (cons (- (/ n g)) (- (/ d g)))
+        (cons (/ n g) (/ d g)))))
+(define (numer x) (car x))
+(define (denom x) (cdr x))
+
+(define (print-rat x)
+  (newline)
+  (display (numer x))
+  (display "/")
+  (display (denom x)))
 
 
 
