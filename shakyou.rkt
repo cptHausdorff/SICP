@@ -25,6 +25,10 @@
 - `if`: `(if <predecate> <consequent> <alternative>)`
 - `and`: `(and <e1> ... <en>)`
 - `or`: `(or <e1> ... <en>)`
+- `let`: `(let ((<var> <exp>)...(<var> <exp>)) <body>)`
+`lambda` のシンタックスシュガー
+
+- `lambda`: `(lambda (<formal-parameters>) <body>)`
 
 ### 置き換えモデル
 
@@ -33,6 +37,7 @@
 |#
 
 (define (square x) (* x x))
+(define (cube x) (* x x x))
 (define (sum-of-square x y)
   (+ (square x) (square y)))
 (define (abs x)
@@ -41,7 +46,7 @@
       x))
 (define (average x y)
   (/ (+ x y) 2))
-
+;; sqrt
 (define (sqrt x)
   (define (good-enough? guess)
     (< (abs (- (square guess) x)) 0.001))
@@ -52,7 +57,7 @@
         guess
         (sqrt-iter (improve guess))))
   (sqrt-iter 1.0))
-
+;; factorial
 (define (factorial n)
   (fact-iter 1 1 n))
 (define (fact-iter product counter max-count)
@@ -61,13 +66,14 @@
       (fact-iter (* counter product)
                  (+ counter 1)
                  max-count)))
+;; fibonacci
 (define (fib n)
   (fib-iter 1 0 n))
 (define (fib-iter a b count)
   (if (= count 0)
       b
       (fib-iter (+ a b) a (- count 1))))
-
+;; count-change
 (define (count-change amount)
   (cc amount 5))
 (define (cc amount kinds-of-coins)
@@ -84,30 +90,64 @@
         ((= kinds-of-coins 3) 10)
         ((= kinds-of-coins 4) 25)
         ((= kinds-of-coins 5) 50)))
+;; expt
+(define (expt b n)
+  "逐次平方版"
+  (cond ((= n 0) 1)
+        ((even? n) (square (expt b (/ n 2))))
+        (else (* b (expt b (- n 1))))))
+(define (even? n)
+  (= (remainder n 2) 0))
+;; gcd
+(define (gcd a b)
+  (if (= b 0)
+      a
+      (gcd b (remainder a b))))
+;; prime?
+(define (smallest-divisor n)
+  (find-divisor n 2))
+(define (find-divisor n test-divisor)
+  (cond ((> (square test-divisor) n) n)
+        ((divides? test-divisor n ) test-divisor)
+        (else (find-divisor n (+ test-divisor 1)))))
+(define (divides? a b)
+  (= (remainder b a) 0))
+(define (prime? n)
+  (= n (smallest-divisor n)))
+;; Fermat test
+(define (expmod base exp m)
+  "ある数の冪乗の別の数を法とした剰余"
+  (cond ((= exp 0) 1)
+        ((even? exp)
+         (remainder (square (expmod base (/ exp 2) m))
+                    m))
+        (else
+         (remainder (* base (expmod base (- exp 1) m))
+                    m))))
+(define (fermat-test n)
+  (define (try-it a)
+    (= (expmod a n n) a))
+  (try-it (+ 1 (random (- n 1)))))
+(define (fast-prime? n times)
+  (cond ((= times 0) true)
+        ((fermat-test n) (fast-prime? n (- times 1)))
+        (else false)))
+;; sum
+(define (sum f a next b)
+  (if (> a b)
+      0
+      (+ (f a)
+         (sum f (next a) next b))))
 
-;;      問題
-; Q1.3
-(define (q13 x y z)
-  "大きい二つの数の二乗の和"
-  (cond ((or (> x y z) (> y x z))
-         (sum-of-square x y))
-        ((or (> x z y) (> z x y))
-         (sum-of-square x z))
-        ((or (> y z x) (> z y x))
-         (sum-of-square y z))))
-; Q1.8
-(define (cbrt x)
-  (define (good-enough? guess)
-    (< (abs (- (* guess guess guess) x)) 0.001))
-  (define (improve guess)
-    (/ (+ (/ x (square guess))
-          (* 2 guess))
-       3))
-  (define (cbrt-iter guess)
-    (if (good-enough? guess)
-        guess
-        (cbrt-iter (improve guess))))
-  (cbrt-iter 1.0))
+(define (inc n) (+ n 1))
+(define (sum-integers a b)
+  (sum identity a inc b))
+(define (integral f a b dx)
+  (* (sum f
+          (+ a (/ dx 2.0))
+          (lambda (x) (+ x dx))
+          b)
+     dx))
 
 
 
