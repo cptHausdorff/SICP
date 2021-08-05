@@ -231,9 +231,7 @@
 
 (define (make-rat n d)
   (let ((g (gcd n d)))
-    (if (< d 0)
-        (cons (- (/ n g)) (- (/ d g)))
-        (cons (/ n g) (/ d g)))))
+    (cons (/ n g) (/ d g))))
 (define (numer x) (car x))
 (define (denom x) (cdr x))
 
@@ -243,6 +241,186 @@
   (display "/")
   (display (denom x)))
 
+; 点　線分
+(define (make-point x y) (cons x y))
+(define (x-point p) (car p))
+(define (y-point p) (cdr p))
+
+(define (make-segment p q) (cons p q))
+(define (start-segment seg) (car seg))
+(define (end-segment seg) (cdr seg))
+
+(define (print-point p)
+  (newline)
+  (display "(")
+  (display (x-point p))
+  (display ",")
+  (display (y-point p))
+  (display ")"))
+  
+
+;; 区間算術
+(define (make-interval a b) (cons a b))
+(define (lower-bound x) (car x))
+(define (upper-bound x) (cdr x))
+
+(define (add-interval x y)
+  (make-interval (+ (lower-bound x) (lower-bound y))
+                 (+ (upper-bound x) (upper-bound y))))
+(define (mul-interval x y)
+  (let ((p1 (* (lower-bound x) (lower-bound y)))
+        (p2 (* (lower-bound x) (upper-bound y)))
+        (p3 (* (upper-bound x) (lower-bound y)))
+        (p4 (* (upper-bound x) (upper-bound x))))
+    (make-interval (min p1 p2 p3 p4)
+                   (max p1 p2 p3 p4))))
+(define (div-interval x y)
+  (mul-interval x
+                (make-interval (/ 1.0 (upper-bound y))
+                               (/ 1.0 (lower-bound y)))))
+(define (sub-interval x y)
+  (add-interval x
+                (make-interval (- (upper-bound y))
+                               (- (lower-bound y)))))
+(define (make-center-width c w)
+  (make-interval (- c w) (+ c w)))
+(define (center i)
+  (/ (+ (lower-bound i) (upper-bound i)) 2))
+(define (width i)
+  (/ (- (upper-bound i) (lower-bound i)) 2))
+(define (make-center-percent c p)
+  (make-interval (- c (* c p)) (+ c (* c p))))
+(define (percent i)
+  (/ (width i) (center i)))
+
+; list
+;; cdr down, cons up
+(define (list-ref items n)
+  (if (= n 0)
+      (car items)
+      (list-ref (cdr items) (- n 1))))
+(define (length items)
+  (define (length-iter a count)
+    (if (null? a)
+        count
+        (length-iter (cdr a) (+ 1 count))))
+  (length-iter items 0))
+(define (append list1 list2)
+  (if (null? list1)
+      list2
+      (cons (car list1)
+            (append (cdr list1) list2))))
+
+(define (last-pair items)
+  (if (null? (cdr items))
+      items
+      (last-pair (cdr items))))
+(define (reverse items)
+  (if (null? items)
+      null
+      (append (reverse (cdr items))
+              (list (car items)))))
+
+(define (map proc items)
+  (if (null? items)
+      null
+      (cons (proc (car items))
+            (map proc (cdr items)))))
+;; tree
+(define (count-leaves x)
+  (cond ((null? x) 0)
+        ((not (pair? x)) 1)
+        (else (+ (count-leaves (car x))
+                 (count-leaves (cdr x))))))
+(define (tree-map proc tree)
+  (cond ((null? tree) null)
+        ((not (pair? (car tree)))
+         (cons (proc (car tree))
+               (tree-map proc (cdr tree))))
+        (else (cons (tree-map proc (car tree))
+                    (tree-map proc (cdr tree))))))
+
+;; conventional interfaces
+(define (filter predicate seq)
+  (cond ((null? seq) null)
+        ((predicate (car seq))
+         (cons (car seq)
+               (filter predicate (cdr seq))))
+        (else (filter predicate (cdr seq)))))
+(define (accumulate op initial seq)
+  (if (null? seq)
+      initial
+      (op (car seq)
+          (accumulate op initial (cdr seq)))))
+(define (enumerate-interval low high)
+  (if (> low high)
+      null
+      (cons low (enumerate-interval (+ low 1) high))))
+(define (enumerate-tree tree)
+  (cond ((null? tree) null)
+        ((not (pair? tree)) (list tree))
+        (else (append (enumerate-tree (car tree))
+                      (enumerate-tree (cdr tree))))))
+(define (flatmap proc seq)
+  (accumulate append null (map proc seq)))
+
+
+;; 記号微分
+; 代数式の表現
+; 変数は記号とする．
+(define (=number? exp num)
+  (and (number? exp) (= exp num)))
+(define (variable? x) (symbol? x))
+(define (same-variable? v1 v2)
+  (and (variable? v1) (variable? v2) (eq? v1 v2)))
+
+(define (make-sum a1 a2)
+  (cond ((=number? a1 0) a2)
+        ((=number? a2 0) a1)
+        ((and (number? a1) (number? a2) (+ a1 a2)))
+        (else (list (quote +) a1 a2))))
+(define (make-product m1 m2)
+  (cond ((or (=number? m1 0) (=number? m2 0)) 0)
+        ((=number? m1 1) m2)
+        ((=number? m2 1) m1)
+        ((and (number? m1) (number? m2)) (* m1 m2))
+        (else (list (quote *) m1 m2))))
+
+(define (sum? x)
+  (and (pair? x) (eq? (car x) (quote +))))
+(define (addend s) (cadr s))
+(define (augend s) (caddr s))
+
+(define (product? x)
+  (and (pair? x) (eq? (car x) (quote *))))
+(define (multiplier p) (cadr p))
+(define (multiplicand p) (caddr p))
+
+
+
+; 微分規則
+(define (diff exp var)
+  (cond ((number? exp) 0)
+        ((variable? exp)
+         (if (same-variable? exp var) 1 0))
+        ((sum? exp)
+         (make-sum (diff (addend exp) var)
+                   (diff (augend exp) var)))
+        ((product? exp)
+         (make-sum
+          (make-product (multiplier exp)
+                        (diff (multiplicand exp) var))
+          (make-product (diff (multiplier exp) var)
+                        (multiplicand exp))))
+        (else
+         (error "unknown expression type -- DERIV" exp))))
+
+
+
+
+
+
+  
 
 
 
